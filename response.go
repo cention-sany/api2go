@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
-	"github.com/manyminds/api2go/jsonapi"
+	//"github.com/google/jsonapi"
+	"github.com/cention-sany/jsonapi"
 )
 
 // The Response struct implements api2go.Responder and can be used as a default
@@ -17,6 +19,7 @@ type Response struct {
 	Code       int
 	Meta       map[string]interface{}
 	Pagination Pagination
+	*DefaultLinks
 }
 
 // Metadata returns additional meta data
@@ -34,7 +37,8 @@ func (r Response) StatusCode() int {
 	return r.Code
 }
 
-func buildLink(base string, r *http.Request, pagination map[string]string) jsonapi.Link {
+func buildLink(base string, r *http.Request,
+	pagination map[string]string) jsonapi.Link {
 	params := r.URL.Query()
 	for k, v := range pagination {
 		qk := fmt.Sprintf("page[%s]", k)
@@ -48,20 +52,29 @@ func buildLink(base string, r *http.Request, pagination map[string]string) jsona
 }
 
 // Links returns a jsonapi.Links object to include in the top-level response
-func (r Response) Links(req *http.Request, baseURL string) (ret jsonapi.Links) {
-	ret = make(jsonapi.Links)
-
+func (r Response) Links(req *http.Request,
+	si jsonapi.ServerInformation) *jsonapi.Links {
+	var ret *jsonapi.Links
+	if r.DefaultLinks != nil {
+		ret = r.LinksWithSI(si)
+	}
+	if ret == nil {
+		m := make(jsonapi.Links)
+		ret = &m
+	}
+	baseURL := fmt.Sprintf("%s%s", strings.Trim(si.GetBaseURL(), "/"),
+		req.URL.Path)
 	if r.Pagination.Next != nil {
-		ret["next"] = buildLink(baseURL, req, r.Pagination.Next)
+		(*ret)["next"] = buildLink(baseURL, req, r.Pagination.Next)
 	}
 	if r.Pagination.Prev != nil {
-		ret["prev"] = buildLink(baseURL, req, r.Pagination.Prev)
+		(*ret)["prev"] = buildLink(baseURL, req, r.Pagination.Prev)
 	}
 	if r.Pagination.First != nil {
-		ret["first"] = buildLink(baseURL, req, r.Pagination.First)
+		(*ret)["first"] = buildLink(baseURL, req, r.Pagination.First)
 	}
 	if r.Pagination.Last != nil {
-		ret["last"] = buildLink(baseURL, req, r.Pagination.Last)
+		(*ret)["last"] = buildLink(baseURL, req, r.Pagination.Last)
 	}
-	return
+	return ret
 }

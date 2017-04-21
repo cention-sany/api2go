@@ -1,27 +1,12 @@
 language: go
 
 go:
-  - 1.7
+  - 1.8
   - tip
 
-sudo: false
-
 install:
-  - go get -t -d -v ./...
-  - go get github.com/onsi/ginkgo/ginkgo
-  - go get -u github.com/golang/lint/golint
-  - go get -u github.com/modocache/gover
-  - go get -u github.com/mattn/goveralls
-
-script:
-  - ginkgo -r -cover --randomizeAllSpecs --randomizeSuites --failOnPending --trace --race --progress
-  - rm examples/examples.coverprofile
-  - bash scripts/fmtpolice
-  - gover
-  - goveralls -coverprofile=gover.coverprofile -repotoken gY90SprlNRGmSMl7MgybLreYa05wUXJTU
-
-notifications:
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/9caacfa1bede5e900019
-    on_success: change
+  - go get -v ./...
+  - go get github.com/gin-gonic/gin
+  - cd $GOPATH/src/github.com/gin-gonic/gin; git checkout ce784498b404909aad90c715099d38d0fabd3b1b
+  - go get github.com/cention-sany/jsonapi
+  - cd $GOPATH/src/github.com/google/jsonapi; git checkout 8fe2ebcbac8e4175c7aa0aae4f7436b7f12fb33a
