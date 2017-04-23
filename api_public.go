@@ -9,8 +9,8 @@ import (
 // API is a REST JSONAPI.
 type API struct {
 	ContentType string
-	info        information
-	resources   []resource
+	*information
+	resources []resource
 }
 
 // AddResource registers a data source for the given resource
@@ -39,11 +39,11 @@ func newAPI(prefix string, resolver URLResolver) *API {
 		prefixSlashes = "/"
 	}
 
-	info := information{prefix: prefixSlashes, resolver: resolver}
+	info := &information{prefix: prefixSlashes, resolver: resolver}
 
 	api := &API{
 		ContentType: defaultContentTypHeader,
-		info:        info,
+		information: info,
 	}
 
 	return api

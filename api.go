@@ -214,11 +214,15 @@ func (api *API) addResource(rg *gin.RouterGroup, prototype Identifier,
 
 	requestInfo := func(c *gin.Context, api *API) *information {
 		var info *information
-		if resolver, ok := api.info.resolver.(RequestAwareURLResolver); ok {
+		resolver, ok := api.information.resolver.(RequestAwareURLResolver)
+		if ok {
 			resolver.SetRequest(*c.Request)
-			info = &information{prefix: api.info.prefix, resolver: resolver}
+			info = &information{
+				prefix:   api.information.prefix,
+				resolver: resolver,
+			}
 		} else {
-			info = &api.info
+			info = api.information
 		}
 
 		return info
