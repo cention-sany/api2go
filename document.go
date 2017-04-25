@@ -6,31 +6,31 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/cention-sany/jsonapi"
+	ja "github.com/cention-sany/jsonapi"
 )
 
 type noder interface {
-	node() *jsonapi.Node
-	nodes() []*jsonapi.Node
-	meta(v ...*jsonapi.Meta) *jsonapi.Meta
-	links(v ...*jsonapi.Links) *jsonapi.Links
+	node() *ja.Node
+	nodes() []*ja.Node
+	meta(v ...*ja.Meta) *ja.Meta
+	links(v ...*ja.Links) *ja.Links
 }
 
 // Doc implements noder and MarshalJSON
 type Doc struct {
-	one  *jsonapi.OnePayload
-	many *jsonapi.ManyPayload
+	one  *ja.OnePayload
+	many *ja.ManyPayload
 }
 
-func (d *Doc) node() *jsonapi.Node {
+func (d *Doc) node() *ja.Node {
 	return d.one.Data
 }
 
-func (d *Doc) nodes() []*jsonapi.Node {
+func (d *Doc) nodes() []*ja.Node {
 	return d.many.Data
 }
 
-func (d *Doc) included() []*jsonapi.Node {
+func (d *Doc) included() []*ja.Node {
 	if d.one != nil {
 		return d.one.Included
 	} else if d.many != nil {
@@ -39,9 +39,9 @@ func (d *Doc) included() []*jsonapi.Node {
 	return nil
 }
 
-func (d *Doc) meta(v ...*jsonapi.Meta) *jsonapi.Meta {
+func (d *Doc) meta(v ...*ja.Meta) *ja.Meta {
 	var (
-		m     *jsonapi.Meta
+		m     *ja.Meta
 		isSet bool
 	)
 	if v != nil && len(v) > 0 {
@@ -64,9 +64,9 @@ func (d *Doc) meta(v ...*jsonapi.Meta) *jsonapi.Meta {
 	return nil
 }
 
-func (d *Doc) links(v ...*jsonapi.Links) *jsonapi.Links {
+func (d *Doc) links(v ...*ja.Links) *ja.Links {
 	var (
-		l     *jsonapi.Links
+		l     *ja.Links
 		isSet bool
 	)
 	if v != nil && len(v) > 0 {
@@ -100,21 +100,21 @@ func (d *Doc) MarshalJSON() ([]byte, error) {
 
 // RelationNode implements noder and MarshalJSON
 type RelationNode struct {
-	one  *jsonapi.RelationshipOneNode
-	many *jsonapi.RelationshipManyNode
+	one  *ja.RelationshipOneNode
+	many *ja.RelationshipManyNode
 }
 
-func (r *RelationNode) node() *jsonapi.Node {
+func (r *RelationNode) node() *ja.Node {
 	return r.one.Data
 }
 
-func (r *RelationNode) nodes() []*jsonapi.Node {
+func (r *RelationNode) nodes() []*ja.Node {
 	return r.many.Data
 }
 
-func (r *RelationNode) meta(v ...*jsonapi.Meta) *jsonapi.Meta {
+func (r *RelationNode) meta(v ...*ja.Meta) *ja.Meta {
 	var (
-		m     *jsonapi.Meta
+		m     *ja.Meta
 		isSet bool
 	)
 	if v != nil && len(v) > 0 {
@@ -137,9 +137,9 @@ func (r *RelationNode) meta(v ...*jsonapi.Meta) *jsonapi.Meta {
 	return nil
 }
 
-func (r *RelationNode) links(v ...*jsonapi.Links) *jsonapi.Links {
+func (r *RelationNode) links(v ...*ja.Links) *ja.Links {
 	var (
-		l     *jsonapi.Links
+		l     *ja.Links
 		isSet bool
 	)
 	if v != nil && len(v) > 0 {
@@ -183,13 +183,13 @@ func marshalToDoc(v interface{}, info information) (*Doc, error) {
 		for i := 0; i < size; i++ {
 			vs = append(vs, value.Index(i).Interface())
 		}
-		many, err := jsonapi.MarshalManyWithSI(vs, info)
+		many, err := ja.MarshalManyWithSI(vs, info)
 		if err != nil {
 			return nil, err
 		}
 		return &Doc{many: many}, nil
 	case reflect.Struct, reflect.Ptr:
-		one, err := jsonapi.MarshalOneWithSI(v, info)
+		one, err := ja.MarshalOneWithSI(v, info)
 		if err != nil {
 			return nil, err
 		}
@@ -199,6 +199,11 @@ func marshalToDoc(v interface{}, info information) (*Doc, error) {
 	}
 }
 
+// DefaultLinks is helper struct to generate link object for Responder or any
+// struct that embeds it. DefaultLinks handle nil value by return nil to
+// LinksWithSI and RelationshipLinksWithSI to avoid any links object to be
+// generated. Thus provide flexibility to embedding struct to control the link
+// object generations.
 type DefaultLinks struct {
 	id, name     string
 	withRelation bool
@@ -208,27 +213,30 @@ func NewDefaultLinks(id, name string, withRelation bool) *DefaultLinks {
 	return &DefaultLinks{id: id, name: name, withRelation: withRelation}
 }
 
-func (d DefaultLinks) LinksWithSI(si jsonapi.ServerInformation) *jsonapi.Links {
-	result := make(jsonapi.Links)
-	s := fmt.Sprint(si.GetBaseURL(), si.GetPrefix(), "/", d.name)
+func (d *DefaultLinks) LinksWithSI(si ja.ServerInformation) *ja.Links {
+	if d == nil {
+		return nil
+	}
+	result := make(ja.Links)
+	s := fmt.Sprint(si.GetBaseURL(), si.GetPrefix(), d.name)
 	if d.id != "" {
 		s = fmt.Sprint(s, "/", d.id)
 	}
-	result["self"] = jsonapi.Link{Href: s}
+	result["self"] = ja.Link{Href: s}
 	return &result
 }
 
 const relStr = "relationships/"
 
-func (d DefaultLinks) RelationshipLinksWithSI(r string,
-	si jsonapi.ServerInformation) *jsonapi.Links {
-	if !d.withRelation {
+func (d *DefaultLinks) RelationshipLinksWithSI(r string,
+	si ja.ServerInformation) *ja.Links {
+	if d == nil || !d.withRelation {
 		return nil
 	}
-	result := make(jsonapi.Links)
-	result["self"] = jsonapi.Link{Href: fmt.Sprint(si.GetBaseURL(),
-		si.GetPrefix(), "/", d.name, "/", d.id, relStr, r)}
-	result["related"] = jsonapi.Link{Href: fmt.Sprint(si.GetBaseURL(),
-		si.GetPrefix(), "/", d.name, "/", d.id, "/", r)}
+	result := make(ja.Links)
+	result["self"] = ja.Link{Href: fmt.Sprint(si.GetBaseURL(),
+		si.GetPrefix(), d.name, "/", d.id, "/", relStr, r)}
+	result["related"] = ja.Link{Href: fmt.Sprint(si.GetBaseURL(),
+		si.GetPrefix(), d.name, "/", d.id, "/", r)}
 	return &result
 }

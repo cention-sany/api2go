@@ -6,7 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// API is a REST JSONAPI.
+// API is a REST JSONAPI. It also satisfies
+// github.com/cention-sany/jsonapi.ServerInformation. GetPrefix() always return
+// trail slash.
 type API struct {
 	ContentType string
 	*information
