@@ -5,8 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	ja "github.com/cention-sany/jsonapi"
+)
+
+var (
+	// EmptyObject only apply to top level object which return null when the doc
+	// can not be found but the requested path is legitimate.
+	EmptyObject = &ja.OnePayload{}
+	// EmptyObject only apply to top level object which return empty json array
+	// [] when the doc can not be found but the requested path is legitimate.
+	EmptyArray = &ja.ManyPayload{}
 )
 
 type noder interface {
@@ -173,12 +183,16 @@ func (r *RelationNode) MarshalJSON() ([]byte, error) {
 
 func marshalToDoc(v interface{}, info information) (*Doc, error) {
 	if v == nil {
-		return nil, errors.New("api2go: nothing to marshal")
+		return &Doc{one: EmptyObject}, nil
 	}
-	switch reflect.TypeOf(v).Kind() {
+	value := reflect.ValueOf(v)
+	k := value.Kind()
+	switch k {
 	case reflect.Slice:
-		value := reflect.ValueOf(v)
 		size := value.Len()
+		if size == 0 {
+			return &Doc{many: EmptyArray}, nil
+		}
 		vs := make([]interface{}, 0, size)
 		for i := 0; i < size; i++ {
 			vs = append(vs, value.Index(i).Interface())
@@ -189,6 +203,13 @@ func marshalToDoc(v interface{}, info information) (*Doc, error) {
 		}
 		return &Doc{many: many}, nil
 	case reflect.Struct, reflect.Ptr:
+		if k == reflect.Struct {
+			if reflect.Zero(value.Type()).Interface() == v {
+				return &Doc{one: EmptyObject}, nil
+			}
+		} else if value.IsNil() {
+			return &Doc{one: EmptyObject}, nil
+		}
 		one, err := ja.MarshalOneWithSI(v, info)
 		if err != nil {
 			return nil, err
@@ -239,4 +260,64 @@ func (d *DefaultLinks) RelationshipLinksWithSI(r string,
 	result["related"] = ja.Link{Href: fmt.Sprint(si.GetBaseURL(),
 		si.GetPrefix(), d.name, "/", d.id, "/", r)}
 	return &result
+}
+
+// OffsetPage is helper to check if r contains pagination query or not and turn
+// it into SQL friendly offset and limit value. It return if r contains page
+// query, offset, limit, and any error found. If page[limit] not exist in the
+// offset-paged query, limit will return as -1.
+func OffsetPage(r *Request) (bool, int, int, error) {
+	var (
+		numOrOffI, sizeOrLmtI int
+		err                   error
+	)
+	if len(r.Pagination) <= 0 {
+		return false, 0, 0, nil
+	}
+	numOrOff, hasNumOrOff := r.Pagination["number"]
+	sizeOrLmt, hasSizeOrLmt := r.Pagination["size"]
+	if hasSizeOrLmt {
+		sizeOrLmtI, err = strconv.Atoi(sizeOrLmt)
+		if err != nil {
+			return false, 0, 0, err
+		} else if sizeOrLmtI <= 0 {
+			return false, 0, 0, errors.New("api2go: invalid page size")
+		}
+		if hasNumOrOff {
+			numOrOffI, err = strconv.Atoi(numOrOff)
+			if err != nil {
+				return false, 0, 0, err
+			} else if numOrOffI <= 0 {
+				return false, 0, 0, errors.New("api2go: invalid page number")
+			}
+		}
+		// turn to offset
+		if numOrOffI > 0 {
+			// query contains page number
+			return true, sizeOrLmtI * (numOrOffI - 1), sizeOrLmtI, nil
+		}
+		return true, 0, sizeOrLmtI, nil
+	}
+	numOrOff, hasNumOrOff = r.Pagination["offset"]
+	sizeOrLmt, hasSizeOrLmt = r.Pagination["limit"]
+	if !hasNumOrOff && !hasSizeOrLmt {
+		return false, 0, 0, nil
+	}
+	if hasSizeOrLmt {
+		sizeOrLmtI, err = strconv.Atoi(sizeOrLmt)
+		if err != nil {
+			return false, 0, 0, err
+		} else if sizeOrLmtI <= 0 {
+			return false, 0, 0, errors.New("api2go: invalid page limit")
+		}
+	} else {
+		sizeOrLmtI = -1
+	}
+	if hasNumOrOff {
+		numOrOffI, err = strconv.Atoi(numOrOff)
+		if err != nil {
+			return false, 0, 0, err
+		}
+	}
+	return true, numOrOffI, sizeOrLmtI, nil
 }
