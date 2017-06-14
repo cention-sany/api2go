@@ -353,6 +353,7 @@ func buildReqParams(c *gin.Context) Request {
 	req.Pagination = pagination
 	req.QueryParams = params
 	req.APIContexter = c
+	req.Request = c.Request
 	return req
 }
 
