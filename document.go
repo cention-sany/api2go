@@ -33,10 +33,16 @@ type Doc struct {
 }
 
 func (d *Doc) node() *ja.Node {
+	if d.one == nil {
+		return nil
+	}
 	return d.one.Data
 }
 
 func (d *Doc) nodes() []*ja.Node {
+	if d.many == nil {
+		return nil
+	}
 	return d.many.Data
 }
 

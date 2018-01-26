@@ -883,10 +883,13 @@ func filterSparseFields(resp interface{}, c *gin.Context) (interface{}, error) {
 			}
 		}
 
-		for _, data := range document.nodes() {
-			errors := replaceAttributes(&queryParams, data)
-			for t, v := range errors {
-				wrongFields[t] = v
+		many := document.nodes()
+		if many != nil {
+			for _, data := range many {
+				errors := replaceAttributes(&queryParams, data)
+				for t, v := range errors {
+					wrongFields[t] = v
+				}
 			}
 		}
 
