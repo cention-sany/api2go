@@ -121,10 +121,16 @@ type RelationNode struct {
 }
 
 func (r *RelationNode) node() *ja.Node {
+	if r.one == nil {
+		return nil
+	}
 	return r.one.Data
 }
 
 func (r *RelationNode) nodes() []*ja.Node {
+	if r.many == nil {
+		return nil
+	}
 	return r.many.Data
 }
 
