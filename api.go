@@ -311,24 +311,6 @@ func (api *API) addResource(rg *gin.RouterGroup, prototype Identifier,
 		}
 	}
 
-	rg.Handle("GET", baseURL+"/custom/formatter", func(c *gin.Context) {
-		source, ok := res.source.(FindAll)
-		if !ok {
-			api.handleError(NewHTTPError(nil, "Resource does not implement the FindAll interface", http.StatusNotFound), c)
-			return
-		}
-		response, err := source.FindAll(buildReqParams(c))
-		if err != nil {
-			api.handleError(err, c)
-			return
-		}
-		if response != nil {
-			if err := res.respondWith(c, response, *requestInfo(c, api), http.StatusOK); err != nil {
-				api.handleError(err, c)
-			}
-		}
-	})
-
 	rg.Handle("POST", baseURL, func(c *gin.Context) {
 		info := requestInfo(c, api)
 		err := res.handleCreate(c, info.prefix, *info)
