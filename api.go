@@ -401,9 +401,6 @@ func (res *resource) handleIndex(c *gin.Context, info information) error {
 		return err
 	}
 
-	if response.StatusCode() == http.StatusAlreadyReported {
-		return nil
-	}
 	return res.respondWith(c, response, info, http.StatusOK)
 }
 
