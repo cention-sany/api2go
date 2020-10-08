@@ -52,14 +52,24 @@ func (e HTTPError) Error() string {
 	return msg
 }
 
-// Error returns a nice string represenation including the status
+// Write wraps Render() to provide compatibility with older gin versions
 func (e HTTPError) Write(w http.ResponseWriter) error {
+	return e.Render(w)
+}
+
+// Error returns a nice string represenation including the status
+func (e HTTPError) Render(w http.ResponseWriter) error {
 	if len(e.E) == 0 {
 		e.E = []*jsonapi.ErrorObject{{
 			Title:  e.msg,
 			Status: strconv.Itoa(e.status),
 		}}
 	}
-	w.Header().Set("Content-Type", jsonapi.MediaType)
+	e.WriteContentType(w)
 	return jsonapi.MarshalErrors(w, e.E)
+}
+
+// WriteContentType sets the content type
+func (e HTTPError) WriteContentType(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", jsonapi.MediaType)
 }
